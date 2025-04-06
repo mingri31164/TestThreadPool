@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.HashSet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -14,7 +15,36 @@ public class TestPool {
 
 }
 
-@Slf4j(topic = "BlockingQueue")
+
+class ThreadPool {
+    // 1.任务队列
+    private BlockingQueue<Runnable> taskQueue;
+
+    // 2.线程集合
+    private HashSet<Worker> workers = new HashSet<>();
+
+    // 3.核心线程数
+    private int coreSize;
+
+    // 4.获取任务的超时时间
+    private long timeout;
+
+    private TimeUnit timeUnit;
+
+    public ThreadPool(int coreSize, long timeout, TimeUnit timeUnit, int queueCapcity) {
+        this.coreSize = coreSize;
+        this.timeout = timeout;
+        this.timeUnit = timeUnit;
+        this.taskQueue = new BlockingQueue<>(queueCapcity);
+    }
+
+    class Worker {
+
+    }
+
+}
+
+
 class BlockingQueue<T> {
     // 1.任务队列
     private Deque<T> queue = new ArrayDeque<>();
@@ -30,6 +60,10 @@ class BlockingQueue<T> {
 
     // 5.容量
     private int capcity;
+
+    public BlockingQueue(int capcity) {
+        this.capcity = capcity;
+    }
 
     // 带超时的阻塞获取
     public T poll(long timeout, TimeUnit unit) {
