@@ -31,6 +31,21 @@ class ThreadPool {
 
     private TimeUnit timeUnit;
 
+
+    public void execute(Runnable task) {
+        synchronized (workers) {
+            // 当任务数没有超过核心线程数，直接交给 worker 执行
+            if (workers.size() < coreSize) {
+                Worker worker = new Worker(task);
+                workers.add(worker);
+                worker.start();
+            } else {
+                // 任务数超过核心线程数，放入任务队列暂存
+                taskQueue.put(task);
+            }
+        }
+    }
+
     public ThreadPool(int coreSize, long timeout, TimeUnit timeUnit, int queueCapcity) {
         this.coreSize = coreSize;
         this.timeout = timeout;
@@ -38,8 +53,29 @@ class ThreadPool {
         this.taskQueue = new BlockingQueue<>(queueCapcity);
     }
 
-    class Worker {
+    class Worker extends Thread{
+        private Runnable task;
+        public Worker(Runnable task) {
+            this.task = task;
+        }
 
+        @Override
+        public void run() {
+            // 当task不为空执行，执行完毕后再接着从任务队列中获取任务并执行
+            while (task != null || (task = taskQueue.take()) != null) {
+                try {
+                    task.run();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                } finally {
+                    task = null;
+                }
+            }
+            // 将已执行任务从线程集合中移除
+            synchronized (workers) {
+                workers.remove(this);
+            }
+        }
     }
 
 }
