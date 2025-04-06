@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -13,6 +14,7 @@ public class TestPool {
 
 }
 
+@Slf4j(topic = "BlockingQueue")
 class BlockingQueue<T> {
     // 1.任务队列
     private Deque<T> queue = new ArrayDeque<>();
@@ -28,6 +30,31 @@ class BlockingQueue<T> {
 
     // 5.容量
     private int capcity;
+
+    // 带超时的阻塞获取
+    public T poll(long timeout, TimeUnit unit) {
+        lock.lock();
+        try {
+            // 将 timeout 统一转换成纳秒
+            long nanos = unit.toNanos(timeout);
+            while (queue.isEmpty()) {
+                try {
+                    if(nanos <= 0){
+                        return null;
+                    }
+                    // 返回剩余等待时间
+                    nanos = emptyWaitSet.awaitNanos(nanos);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            T t = queue.removeFirst();
+            fullWaitSet.signal();
+            return t;
+        } finally {
+            lock.unlock();
+        }
+    }
 
     // 线程阻塞获取任务
     public T take() {
