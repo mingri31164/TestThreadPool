@@ -11,12 +11,25 @@ import java.util.concurrent.locks.ReentrantLock;
 @Slf4j(topic = "TestPool")
 public class TestPool {
     public static void main(String[] args) {
-        ThreadPool threadPool = new ThreadPool(2, 1000, TimeUnit.MILLISECONDS, 10);
-        for (int i = 0; i < 15; i++) {
+        ThreadPool threadPool = new ThreadPool(1, 1000, TimeUnit.MILLISECONDS, 1,
+                (queue, task) -> {
+                    // 1.死等
+//                    queue.put(task);
+                    // 2.带超时等待
+//                    queue.offer(task, 1500, TimeUnit.MILLISECONDS);
+                    // 3.让调用者放弃任务执行
+//                    log.debug("放弃任务{}", task);
+                    // 4.抛出异常
+//                    throw new RuntimeException("任务执行失败" + task);
+                    // 5.主线程自己执行任务
+                    task.run();
+
+                });
+        for (int i = 0; i < 4; i++) {
             int j = i;
             threadPool.execute(() -> {
                 try {
-                    Thread.sleep(1000000L);
+                    Thread.sleep(1000L);
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
@@ -25,6 +38,14 @@ public class TestPool {
         }
     }
 }
+
+// 拒绝策略
+@FunctionalInterface
+interface RejectPolicy<T> {
+    void reject(BlockingQueue<T> queue, T task);
+}
+
+
 
 @Slf4j(topic = "ThreadPool")
 class ThreadPool {
@@ -42,6 +63,9 @@ class ThreadPool {
 
     private TimeUnit timeUnit;
 
+    // 5.拒绝策略
+    private RejectPolicy<Runnable> rejectPolicy;
+
 
     public void execute(Runnable task) {
         synchronized (workers) {
@@ -53,16 +77,17 @@ class ThreadPool {
                 worker.start();
             } else {
                 // 任务数超过核心线程数，放入任务队列暂存
-                taskQueue.put(task);
+                taskQueue.tryPut(rejectPolicy, task);
             }
         }
     }
 
-    public ThreadPool(int coreSize, long timeout, TimeUnit timeUnit, int queueCapcity) {
+    public ThreadPool(int coreSize, long timeout, TimeUnit timeUnit, int queueCapcity, RejectPolicy<Runnable> rejectPolicy) {
         this.coreSize = coreSize;
         this.timeout = timeout;
         this.timeUnit = timeUnit;
         this.taskQueue = new BlockingQueue<>(queueCapcity);
+        this.rejectPolicy = rejectPolicy;
     }
 
     class Worker extends Thread{
@@ -215,4 +240,23 @@ class BlockingQueue<T> {
             lock.unlock();
         }
     }
+
+    public void tryPut(RejectPolicy<T> rejectPolicy, T task) {
+        lock.lock();
+        try {
+            // 判断队列是否满
+            if(queue.size() == capcity) {
+                rejectPolicy.reject(this, task);
+            } else {
+                // 有空闲
+                log.debug("加入任务队列 {}", task);
+                queue.addLast(task);
+                emptyWaitSet.signal();
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+
 }
