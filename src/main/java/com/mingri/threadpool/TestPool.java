@@ -12,9 +12,14 @@ import java.util.concurrent.locks.ReentrantLock;
 public class TestPool {
     public static void main(String[] args) {
         ThreadPool threadPool = new ThreadPool(2, 1000, TimeUnit.MILLISECONDS, 10);
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 15; i++) {
             int j = i;
             threadPool.execute(() -> {
+                try {
+                    Thread.sleep(1000000L);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
                 log.debug("{}", j);
             });
         }
@@ -48,7 +53,6 @@ class ThreadPool {
                 worker.start();
             } else {
                 // 任务数超过核心线程数，放入任务队列暂存
-                log.debug("加入任务队列 {}", task);
                 taskQueue.put(task);
             }
         }
@@ -157,22 +161,50 @@ class BlockingQueue<T> {
     }
 
     // 阻塞添加任务
-    public void put(T element){
+    public void put(T task){
         lock.lock();
         try {
             while (queue.size() == capcity) {
                 try {
+                    log.debug("等待加入任务队列 {}...", task);
                     fullWaitSet.await();
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
             }
-            queue.addLast(element);
+            log.debug("加入任务队列 {}", task);
+            queue.addLast(task);
             emptyWaitSet.signal();
         } finally {
             lock.unlock();
         }
     }
+
+    // 带超时时间的阻塞添加
+    public boolean offer(T task, long timeout, TimeUnit unit){
+        lock.lock();
+        try {
+            long nanos = unit.toNanos(timeout);
+            while (queue.size() == capcity) {
+                try {
+                    if(nanos <= 0){
+                        return false;
+                    }
+                    log.debug("等待加入任务队列 {}...", task);
+                    nanos = fullWaitSet.awaitNanos(nanos);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            log.debug("加入任务队列 {}", task);
+            queue.addLast(task);
+            emptyWaitSet.signal();
+            return true;
+        } finally {
+            lock.unlock();
+        }
+    }
+
 
     // 获取大小
     public int size(){
