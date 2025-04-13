@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
-@Slf4j(topic = "TestPool")
+@Slf4j(topic = "c.TestPool")
 public class TestPool {
     public static void main(String[] args) {
         ThreadPool threadPool = new ThreadPool(1, 1000, TimeUnit.MILLISECONDS, 1,
@@ -47,7 +47,7 @@ interface RejectPolicy<T> {
 
 
 
-@Slf4j(topic = "ThreadPool")
+@Slf4j(topic = "c.ThreadPool")
 class ThreadPool {
     // 1.任务队列
     private BlockingQueue<Runnable> taskQueue;
@@ -120,7 +120,7 @@ class ThreadPool {
 }
 
 
-@Slf4j(topic = "BlockingQueue")
+@Slf4j(topic = "c.BlockingQueue")
 class BlockingQueue<T> {
     // 1.任务队列
     private Deque<T> queue = new ArrayDeque<>();
