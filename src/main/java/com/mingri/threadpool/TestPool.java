@@ -8,6 +8,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
+
+/**
+ * 手撕线程池
+ **/
 @Slf4j(topic = "c.TestPool")
 public class TestPool {
     public static void main(String[] args) {
